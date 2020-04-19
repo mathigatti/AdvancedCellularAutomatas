@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>Cellular Automata</title>
+<link rel="stylesheet" href="CSS/main.css">
+<link rel="shortcut icon" href="CSS/CA.ico">
+
+     <!-- Simple vertex shader, just renders to full viewport/canvas -->
+
+     <script id="2d-vertex-shader" type="x-shader/x-vertex">
+
+         // Screen and texture co-ords
+         attribute vec2 a_position;
+         attribute vec2 a_texCoord;
+
+         // Raster co-ordinates passed to fragment shader
+         varying vec2 v_texCoord;
+
+         void main() {
+
+           gl_Position = vec4( a_position, 0, 1);
+
+    		   v_texCoord = a_texCoord;
+
+         }
+
+     </script>
+
+     <!-- Display fragment shader, just displays to full canvas, adds color shift to make live cells of texture a certain color -->
+
+    <script id="2d-fragment-display" type="x-shader/x-fragment">
+
+        precision mediump float;
+
+        uniform vec4 u_colorShift;
+
+	      varying vec2 v_texCoord;
+
+	      uniform sampler2D u_image;
+
+        void main() { gl_FragColor = 	texture2D(u_image, v_texCoord) +u_colorShift; }
+
+    </script>
+
+    <!-- Shader used to apply analysis to current front texture -->
+
+    <script id="2d-fragment-analysis" type="x-shader/x-fragment">
+
+        precision mediump float;
+
+          // Previous state
+          uniform vec2 u_textPixel;      // One pixel distance
+          uniform sampler2D u_frontText; // Current texture
+
+          // Varying values passed from vertex shader
+          varying vec2 v_texCoord;
+
+          // Function returns colour value from previous state row
+          vec4 get(int x){ return texture2D( u_frontText, v_texCoord + u_textPixel*vec2( 0, x) );  }
+
+          void main(){
+
+              if  ( get(0) == get(-1) ){ gl_FragColor = 	vec4(0.0,0.0,0.0,1.0); }
+              else { gl_FragColor = 	vec4(1.0,0.0,0.0,0.0); }
+
+          } // End of main
+
+    </script>
+
+    <!-- Fragment shader which analysis value of rulesets being applied -->
+
+    <script id="2d-fragment-analysisB" type="x-shader/x-fragment">
+
+    precision mediump float;
+
+    uniform int u_numStates;  // Number of possible states
+    uniform int u_range;      // Range of neighbours considered
+
+    // Previous state
+    uniform vec2 u_textPixel;      // One pixel distance
+	  uniform sampler2D u_frontText;  // Actual Texture
+
+    // Ruleset
+    uniform vec2 u_rulePixel;      // One pixel distance
+    uniform sampler2D u_rulesText; // Ruleset texture
+
+    // Varying values passed from vertex shader
+	  varying vec2 v_texCoord;
+
+	  // Function returns colour value from previous state row
+    vec4 getNeighbour( int x ){ return texture2D( u_frontText, v_texCoord + u_textPixel*vec2( x-u_range, -1) );  }
+
+    // Returns color value of rule pixel
+    vec4 getRule( int x, int y ){ return texture2D( u_rulesText, 0.5*u_rulePixel+u_rulePixel*vec2( x, y ) ); }
+
+    void main(){
+
+        int row = 0 ; // What row off the rule texture are we on
+
+        // ( Loop over columns of ruleset i.e. 2*range +1 )
+        for ( int i = 0; i < 11; i++ ){
+
+          // Check current column against rule value
+          for ( int j = 0; j < 20; j++ ){
+
+            if( getNeighbour(i) == getRule( i, row ) ){ break; } // If state and rule value match then move to next column
+            else{ row += int(pow( float(u_numStates), float( 2*u_range-i ) )); }          // Else jump to next color value  in ruleset and continue loop
+
+          }
+
+          if( i == int(2*u_range) ){ break;} // Break out of loop when reached right edge of ruleset
+
+        }
+
+        float states = float((2*u_range+1)*u_numStates);
+
+        //gl_FragColor = vec4(0.5*(1.0-float(row)*1.0/states),0.5*float(row)*1.0/states,0.0,1.0) ; // Set cells color value from rule texture final column
+        gl_FragColor = vec4( float(row)*1.0/255.0, 0.0, 0.0, 1.0 );
+        //gl_FragColor = vec4( 3.0*1.0/255.0, 0.0, 0.0, 1.0 );
+
+    } // End of main
+
+    </script>
+
+    <!-- Fragment shader program with 1-D ruleset-->
+
+    <script id="2d-fragment-rules" type="x-shader/x-fragment">
+
+    precision mediump float;
+
+    uniform float u_currentRow;
+
+    uniform int u_numStates;  // Number of possible states
+    uniform int u_range;      // Range of neighbours considered
+
+    // Previous state
+    uniform vec2 u_textPixel;      // One pixel distance
+	  uniform sampler2D u_backText;  // Actual Texture
+
+    // Ruleset
+    uniform vec2 u_rulePixel;      // One pixel distance
+    uniform sampler2D u_rulesText; // Ruleset texture
+
+    // Analytics textures (same dimensions as state textures)
+    // Used to get info about stats of texture out from shader
+    //uniform sampler2D u_analysisText;
+
+    // Varying values passed from vertex shader
+	  varying vec2 v_texCoord;
+
+	  // Function returns colour value from previous state row
+    vec4 getNeighbour( int x ){ return texture2D( u_backText, v_texCoord + u_textPixel*vec2( x-u_range, -1) );  }
+
+    // Returns color value of
+    vec4 getRule( int x, int y ){ return texture2D( u_rulesText, 0.5*u_rulePixel+u_rulePixel*vec2( x, y ) ); }
+
+    void main(){
+
+      // Only perform calculation for current row
+      if ( v_texCoord.y == (u_currentRow+0.5)*u_textPixel.y ){
+
+        int row = 0 ; // What row off the rule texture are we on
+
+        // ( Loop over columns of ruleset i.e. 2*range +1 )
+        for ( int i = 0; i < 11; i++ ){
+
+          // Check current column against rule value
+          for ( int j = 0; j < 20; j++ ){
+
+            if( getNeighbour(i) == getRule( i, row ) ){ break; } // If state and rule value match then move to next column
+            else{ row += int(pow( float(u_numStates), float( 2*u_range-i ) )); }          // Else jump to next color value  in ruleset and continue loop
+
+          }
+
+          if( i == int(2*u_range) ){ break;} // Break out of loop when reached right edge of ruleset
+
+        }
+
+        gl_FragColor = getRule( 2*u_range+1, row ); // Set cells color value from rule texture final column
+
+      }
+
+      else{ gl_FragColor = 	texture2D( u_backText, v_texCoord ); }  // If not update row then just copy back texture
+
+    } // End of main
+
+    </script>
+
+</head>
+
+
+<body id= "body" onresize = "mainCanvas.windowResize()">
+
+<div id="menus"  class="main noBorder double">
+<div id="internal" class="main noBorder">
+
+  <div class="main noBorder" align="center" > <h1 class="main noBorder bordersTop" style="margin: 5px"> 1-D Cellular Automata</h1> </div>
+  <h3>By Zombie-Einstein</h3>
+  <p >1-Dimensional cellular automata implemented using WebGL</p>
+
+  <div class="main noBorder" align="center" style="margin:5px;" >
+  <a href="index.html" ><button class="main" style="width:80%;" > 2-D Version (Basic) </button></a>
+  <a href="advanced.html"    ><button class="main" style="width:80%;" > 2-D Version (Advanced) </button></a>
+  </div>
+
+<!-- Github logo and link -->
+Fork this project on<br>
+<a href="https://github.com/zombie-einstein/Cellular-Automata" target="_blank" style="position: relative; left: 40px;">
+<object >
+<svg   xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" id="logo" version="1.1" viewBox="200 0 125 140" height="25" width="125" style="fill:#ffffff"><metadata id="metadata23"/><defs id="defs21"/><g id="surface1111" transform="translate(-41.491525,-217.22034)"><path id="path5" d="m140.38 278.65-40.36 0c-1.04 0-1.89 0.84-1.89 1.89l0 19.73c0 1.04 0.84 1.89 1.89 1.89l15.74 0 0 24.52c0 0-3.54 1.2-13.31 1.2-11.53 0-27.64-4.21-27.64-39.63 0-35.42 16.77-40.09 32.52-40.09 13.63 0 19.5 2.4 23.24 3.56 1.17 0.36 2.26-0.81 2.26-1.85l4.5-19.07c0-0.49-0.16-1.07-0.72-1.47-1.52-1.08-10.77-6.26-34.16-6.26-26.94 0-54.57 11.46-54.57 66.56 0 55.1 31.64 63.31 58.3 63.31 22.08 0 35.47-9.43 35.47-9.43 0.55-0.3 0.61-1.08 0.61-1.43l0-61.54c0-1.04-0.85-1.89-1.89-1.89M348.35 229.66c0-1.05-0.83-1.89-1.87-1.89l-22.72 0c-1.04 0-1.88 0.84-1.88 1.89 0 0.01 0 43.91 0 43.91l-35.42 0 0-43.91c0-1.05-0.84-1.89-1.87-1.89l-22.72 0c-1.04 0-1.88 0.84-1.88 1.89l0 118.9c0 1.05 0.84 1.91 1.88 1.91l22.72 0c1.04 0 1.88-0.86 1.88-1.91l0-50.86 35.42 0c0 0-0.06 50.85-0.06 50.86 0 1.05 0.84 1.91 1.88 1.91l22.77 0c1.04 0 1.88-0.86 1.88-1.91zm0 0M183.25 245.27c0-8.18-6.56-14.8-14.65-14.8-8.09 0-14.65 6.61-14.65 14.8 0 8.17 6.57 14.8 14.65 14.8 8.09 0 14.65-6.63 14.65-14.8M181.63 323.48l0-54.88c0-1.04-0.84-1.89-1.88-1.89l-22.65 0c-1.04 0-1.97 1.07-1.97 2.11l0 78.64c0 2.31 1.44 3 3.3 3l20.41 0c2.24 0 2.79-1.1 2.79-3.04zm0 0M434.71 266.89l-22.55 0c-1.03 0-1.87 0.85-1.87 1.9l0 58.3c0 0-5.73 4.2-13.86 4.2-8.13 0-10.29-3.69-10.29-11.65l0-50.84c0-1.05-0.84-1.9-1.87-1.9l-22.88 0c-1.04 0-1.88 0.85-1.88 1.9l0 54.7c0 23.64 13.18 29.43 31.31 29.43 14.87 0 26.86-8.21 26.86-8.21 0 0 0.57 4.33 0.83 4.84 0.26 0.51 0.93 1.03 1.66 1.03L434.72 350.5c1.04 0 1.88-0.85 1.88-1.89l0-79.82c0-1.05-0.84-1.9-1.88-1.9M487.45 331.21c-7.82-0.24-13.12-3.79-13.12-3.79l0-37.66c0 0 5.23-3.21 11.65-3.78 8.12-0.73 15.95 1.73 15.95 21.09 0 20.43-3.53 24.46-14.47 24.13m8.89-66.99c-12.81 0-21.52 5.71-21.52 5.71l0-40.27c0-1.05-0.84-1.89-1.87-1.89l-22.79 0c-1.04 0-1.88 0.84-1.88 1.89l0 118.9c0 1.05 0.84 1.91 1.88 1.91l15.81 0c0.71 0 1.25-0.37 1.65-1.01 0.39-0.64 0.96-5.48 0.96-5.48 0 0 9.32 8.83 26.96 8.83 20.71 0 32.58-10.5 32.58-47.16 0-36.65-18.96-41.44-31.78-41.44M246.93 266.7l-17.04 0c0 0-0.02-22.51-0.02-22.52 0-0.85-0.44-1.28-1.43-1.28l-23.23 0c-0.9 0-1.39 0.4-1.39 1.27l0 23.27c0 0-11.64 2.81-12.43 3.04-0.79 0.23-1.36 0.95-1.36 1.82l0 14.62c0 1.05 0.84 1.9 1.88 1.9l11.91 0 0 35.18c0 26.13 18.33 28.7 30.7 28.7 5.65 0 12.41-1.81 13.53-2.23 0.68-0.25 1.07-0.95 1.07-1.7l0.02-16.09c0-1.05-0.89-1.9-1.88-1.9-0.99 0-3.54 0.41-6.15 0.41-8.37 0-11.21-3.89-11.21-8.93 0-5.03 0-33.43 0-33.43l17.04 0c1.04 0 1.88-0.85 1.88-1.9l0-18.32c0-1.05-0.84-1.89-1.88-1.89" class="s0"/></g></svg>
+</object>
+</a>
+
+<div class="bordersTop" style="clear: both;  overflow: auto;">
+<h2 class="alignLeft"> Controls</h2>
+<div class="alignRight tooltip">
+  <h2 > &#63; </h2>
+  <div class="main tooltiptext">
+    <ul>
+    <li> The cells update one row at a time, starting from whatever pattern is in the bottom row of cells.</li>
+    <li> Step: Update the next row of cells.</li>
+    <li> Run: Continuously Update rows.</li>
+    <li> Pause: Pause the updates at the current row.</li>
+    <li> Reset: Clear the cells and start updating from the bottom row again.</li>
+    <li> Loop Mode: Either continuous loops over the cell space, or a single interation of all the rows.</li>
+    <li> Use the slider to control the updates performed per second</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- Controls for running the sim & speed -->
+<button                  onclick="mainCanvas.stepSim()"   class="main" > Step  </button>
+<button id="startbutton" onclick="mainCanvas.startSim()"  class="main" > Run </button>
+<button id="stopbutton"  onclick="mainCanvas.pauseSim()"  class="main" > Pause  </button>
+<button                  onclick="clearCells()"   class="main" > Reset </button>
+<br>
+
+<form>
+  Loop Mode:
+	<select id="loopMode" class="main" >
+  <option value="c" >  Continuous </option>
+  <option value="f" >  Single 	  </option>
+  </select>
+</form>
+
+<strong>Speed:</strong>
+1fps<input type="range" class="main slider-width100" id="speedRange" value="20" max="60" min="1" style="float:middle">60fps
+
+<!-- number of cells -->
+<h2 class="bordersTop"> Cell Space </h2>
+<p>Currenly due to the restrictions of WebGL cell numbers must be powers of two. Topology is also currently locked at torus </p>
+
+
+<form class="main" onsubmit="return false" >
+Width:
+	<select class="main" id="cellWidthSelect" onchange="updateGrid()">
+      <option value="8" 	  >  8 	  </option>
+      <option value="16" 	  >  16 	</option>
+      <option value="32" 	  >  32 	</option>
+      <option value="64" 	  >  64 	</option>
+      <option value="128" 	>  128 	</option>
+      <option value="256" 	>  256 	</option>
+      <option value="512" 	>  512 	</option>
+      <option value="1024" 	>  1024 </option>
+      <option value="2048"  >  2048 </option>
+  	</select>
+  	Height:
+  	<select class="main" id="cellHeightSelect" onchange="updateGrid()">
+      <option value="8" 	  >  8 	  </option>
+      <option value="16" 	  >  16 	</option>
+      <option value="32" 	  >  32 	</option>
+      <option value="64" 	  >  64 	</option>
+      <option value="128" 	>  128 	</option>
+      <option value="256" 	>  256 	</option>
+      <option value="512" 	>  512 	</option>
+      <option value="1024" 	>  1024 </option>
+      <option value="2048"  >  2048 </option>
+  	</select><br>
+</form>
+
+<div class="bordersTop" style="clear: both;  overflow: auto;">
+<h2 class="alignLeft"> Update Algorithm</h2>
+<div class="alignRight tooltip">
+  <h2 > &#63; </h2>
+  <div class="main tooltiptext">
+    <ul>
+    <li>The upper texture contains the possible cell colour states.</li>
+    <li>The lower texture encodes the ruleset and is passed to the WebGL shader to perform the update calculation.</li>
+    <li>The permutations of the possible rules are generated automatically on the left for a given number of states and range of cells.</li>
+    <li>The right hand column show the colour of the updated cell, given the arrangement of neighbour states.</li>
+    <li>You can select a colour and toggle the color of the cells, you can update the permutations for a given set of states by clicking the button.</li>
+    <li>The dropdown menu provides some interesting preset rulesets, as well as emty rulesets for larger ranges (R) and number of states (S). </li>
+    <li>Rulesets can be generated from an integer value. The integer is resolved in the base of the number of states,
+        in this base each digit therefore references a state (this value quickly gets very large for larger numbers of states and neighbours).</li>
+    <li>Random rulesets can also be generated, which randomly selects a state from the possible values, for each permutation.</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<strong> Toggle Values </strong>
+<p>Click on a cell to toggle this color value:</p>
+
+<form class="main" onsubmit="return false" >
+
+  R: <input type="number" class="main" id="Rrule" min="0" max="255" value ="255" step="1" >
+  G: <input type="number" class="main" id="Grule" min="0" max="255" value ="0" step="1" ><br>
+  B: <input type="number" class="main" id="Brule" min="0" max="255" value ="0" step="1" >
+  A: <input type="number" class="main" id="Arule" min="0" max="255" value ="255" step="1" >
+
+</form>
+
+<strong>Possible States</strong>
+<canvas id="statecanvas" class="main " width="185" height="20" onclick="currentRuleSet.stateClick(event)"> </canvas>
+<button class="main" onclick="currentRuleSet.updatePermutations()" > Generate permutations </button><br>
+
+<strong>Update Rules</strong>
+<div class="main noBorder" style="position: relative">
+<canvas id="rulecanvas" class="main " width="185" height="300" >
+Too bad your browser does not support the HTML5 canvas.
+</canvas>
+<canvas id ="ruletextoverlay" class="canvasOverlay"   onclick="currentRuleSet.ruleClick(event)" width="185" height=300>
+  Too bad your browser does not support the HTML5 canvas.
+</canvas>
+
+</div>
+
+<form class="main" onsubmit="return false">
+<strong> Load preset ruleset / space: </strong>
+  <select class="main" id="loadpreset" onchange="loadAndUpdatePreset()">
+  <option value="custom" >  Custom </option>
+  </select>
+</form>
+
+<form class="main" onsubmit="return false" >
+  <strong> Or set a ruleset from an integer: </strong>
+  <input type="number" class="main" id="ruleCode" min="0" max="255" step="1" style="width: 75%">
+  <button class="main" onclick="loadRuleFromHTMLInt()" > Set </button>
+</form>
+
+<strong> Or set a random ruleset: </strong>
+<button class="main" onclick="currentRuleSet.setRandomResults()"> Random Update Rules </button>
+
+<div class="bordersTop" style="clear: both;  overflow: auto;">
+<h2 class="alignLeft"> Initial Seed</h2>
+<div class="alignRight tooltip">
+  <h2 > &#63; </h2>
+  <div class="main tooltiptext">
+    <ul>
+    <li>Set the intial seed of the first (bottom) row.</li>
+    <li>Manually set cells using the mouse.</li>
+    <li>Seeds can also be set from an integer, resolved in the base of the number of states each digit then refers to a state. i.e 1 sets a single cell in the first non-zero color value;
+    </ul>
+  </div>
+</div>
+</div>
+
+<strong> Initial Seed / Toggle colour </strong>
+<form class="main" onsubmit="return false" >
+
+  R: <input type="number" class="main" id="RCanvas" min="0" max="255" value ="255" step="1" >
+  G: <input type="number" class="main" id="GCanvas" min="0" max="255" value ="0" step="1" ><br>
+  B: <input type="number" class="main" id="BCanvas" min="0" max="255" value ="0" step="1" >
+  A: <input type="number" class="main" id="ACanvas" min="0" max="255" value ="255" step="1" >
+
+</form>
+
+<strong> Set Seed: </strong>
+<p>Click on cells to toggle their value, or insert an intial seed: </p>
+<form class="main" onsubmit="return false" >
+  <strong>Random:</strong>P(alive)=
+  <input type="number" class="main" id="pAlive" min="0" max="1" value ="0.5" step="0.1" >
+  <button class="main" onclick="fillRandomCells()" > Set </button>
+</form>
+
+<form class="main" onsubmit="return false" >
+  <strong> Or set a seed from an integer: </strong>
+  <input type="number" class="main" id="seedint" min="0" max="10000" value="1" step="1" style="width: 75%">
+  <button class="main" onclick="setSeedFromHTMLInt()" > Set </button>
+</form>
+
+<h2 class="bordersTop"> Colours Scheme</h2>
+
+<form>
+  <!-- Form entries are generated by javascript (see color.js) -->
+  Color Scheme
+  <select class="main" id="chooseColorScheme"  onchange="changeColorScheme()"> </select><br>
+</form>
+
+<h2 class="bordersTop"> Stats</h2>
+<button class="main" onclick="mainCanvas.histogram()" > Generate Histogram </button>
+<canvas id="histCanvas" class="main " width="200" height="200"> </canvas>
+
+</div>
+</div>
+
+
+
+<canvas id="canvas" class="main noBorder"  onclick="mainCanvas.clickEvent(event)" >
+Too bad your browser does not support the HTML5 canvas.
+</canvas>
+
+<script src ="vector.js"       ></script>
+<script src ="color.js"        ></script>
+<script src ="canvas_class.js" ></script>
+
+<script src ="javascript_one_d/HTML_controls.js"></script>
+<script src ="javascript_one_d/main_canvas.js"  ></script>
+<script src ="javascript_one_d/ruleset.js"      ></script>
+<script src ="javascript_one_d/presets.js"  		></script>
+
+<script src ="javascript_one_d/one_d_main.js"   ></script>
+
+</body>
+
+</html>

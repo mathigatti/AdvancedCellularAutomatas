@@ -1,0 +1,284 @@
+
+
+<html>
+<head>
+</head>
+<body>
+<canvas id="canvas" height="1024" width="1024" style="width: 1024px; height: 1024px; image-rendering: pixelated;"></canvas>
+<br><br>
+<table>
+<tr>
+<td>
+  <input type="range" min="1.2" max="7.9" step="0.01" value="1.8" class="slider" id="radiusRange">
+  <p>radius : <span id="radiusValue">1.8</span></p>
+</td>
+<td>
+  <input type="range" min="0.1" max="0.5" step="0.01" value="0.3" class="slider" id="thresholdRange">
+  <p>threshold : <span id="thresholdValue">0.3</span></p>
+</td>
+<td>
+ <input type="range" min="0" max="10" step="1" value="1" class="slider" id="stepsRange">
+ <p>steps: <span id="stepsValue">1</span></p>
+</td>
+<td>
+reset:
+</td>
+<td>
+<button onclick="doEverything(2)"> spirals </button>
+</td>
+<td>
+<button onclick="doEverything(1)"> planar wave </button>
+
+</td>
+</tr>
+</table>
+
+<script type="x-shader/x-fragment" id="fragment-shader-display">
+  precision mediump float;
+  uniform sampler2D state;
+  void main(void) {
+    vec2 coord = vec2(gl_FragCoord)/1024.0;
+    gl_FragColor = texture2D(state, coord);
+  }
+</script>
+
+<script type="x-shader/x-fragment" id="fragment-shader-iterator">
+  precision mediump float;
+  uniform sampler2D previousState;
+  uniform float rands[50];
+  uniform float radius;
+  uniform float threshold;
+
+  float rand(vec2 co){
+      return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+  }
+
+
+  int wasActive(vec2 coord) {
+    if (coord.x < 0.0 || 1024.0 < coord.x || coord.y < 0.0 || 1024.0 < coord.y) return 0;
+    vec4 px = texture2D(previousState, coord/1024.0);
+    return ((px.r>=0.7)&&(px.r <= 0.99)) ? 1 : 0;
+  }
+  int wasRefractory(vec2 coord){
+    if (coord.x < 0.0 || 1024.0 < coord.x || coord.y < 0.0 || 1024.0 < coord.y) return 0;
+    vec4 px=texture2D(previousState,coord/1024.0);
+    return ((px.r>0.5)&&(px.r<0.9)) ? 1:0;
+  }
+  void main(void) {
+    vec2 coord = vec2(gl_FragCoord);
+    //highp int index = int(indexf);
+    float r1=rand(coord);
+    float r2=r1;
+    vec4 px=texture2D(previousState,coord/1024.0);
+
+    if (px.r<0.05){
+
+    float aliveNeighbors=0.;
+    float deadNeighbors=1.0;
+
+    for (float x=-8.0;x<=8.0;x+=1.0){
+     for (float y=-8.0;y<=8.0;y+=1.0){
+      vec2 coord2=vec2(coord.x+x, coord.y+y);
+      vec2 coord3=vec2(coord.x-x, coord.y-y);
+
+       float r3=rand(coord2);
+       float r4=rand(coord3);
+       float distance=sqrt((x+r3-r1)*(x+r3-r1)+(y+r4-r2)*(y+r4-r2));
+       if (distance<radius){
+        //aliveNeighbors+=wasActive(coord+vec2(x,y));
+        if (wasActive(coord+vec2(x,y))==1)
+         aliveNeighbors+=1.;
+         else
+         deadNeighbors+=1.;
+
+       }
+      }
+     }
+
+     bool nowAlive = (aliveNeighbors/deadNeighbors)>threshold;
+     gl_FragColor = nowAlive ? vec4(px.r+0.95,px.r+0.95,px.r+0.95,1.) : vec4(0.,0.,0.,1.);
+    }
+
+    else
+    if (px.r>=0.05)
+    gl_FragColor=vec4(px.r-0.051,px.r-0.051,px.r-0.051,1.0);
+  }
+</script>
+
+
+<script>
+    const canvasEl = document.getElementById("canvas");
+    const gl = canvasEl.getContext("webgl");
+    var radius_slider   = document.getElementById("radiusRange");
+  var radius_output   = document.getElementById("radiusValue");
+  var threshold_slider = document.getElementById("thresholdRange");
+  var threshold_output= document.getElementById("thresholdValue");
+  var steps_slider = document.getElementById("stepsRange");
+  var steps_output = document.getElementById("stepsValue");
+
+  var radiusvalue=1.8;
+  var thresholdvalue=0.3;
+  var stepsvalue=1;
+
+ function doEverything(mymode){
+
+    function createShader(ty, src) {
+      const s = gl.createShader(ty);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error("Could not compile shader", ty, src, gl.getShaderInfoLog(s));
+      }
+      return s;
+    }
+    const vertexShader = createShader(gl.VERTEX_SHADER, "attribute vec2 coord; void main(void) { gl_Position = vec4(coord, 0.0, 1.0); }");
+    const fragShaderDisplay = createShader(gl.FRAGMENT_SHADER, document.getElementById("fragment-shader-display").innerText);
+    const fragShaderIterator = createShader(gl.FRAGMENT_SHADER, document.getElementById("fragment-shader-iterator").innerText);
+
+    function createProgram(vs, fs) {
+      const p = gl.createProgram();
+      gl.attachShader(p, vs);
+      gl.attachShader(p, fs);
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+        console.error("Error linking program", gl.getProgramInfoLog(p));
+      }
+      return p;
+    }
+    const displayProg = createProgram(vertexShader, fragShaderDisplay);
+    const iteratorProg = createProgram(vertexShader, fragShaderIterator);
+
+    gl.useProgram(iteratorProg);
+
+    const iteratorProgCoordLoc = gl.getAttribLocation(iteratorProg, "coord");
+    const iteratorProgPreviousStateLoc = gl.getUniformLocation(iteratorProg, "previousState");
+
+    const displayProgCoordLoc = gl.getAttribLocation(displayProg, "coord");
+    const displayProgStateLoc = gl.getUniformLocation(displayProg, "state");
+
+    const vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1,-1,  1,-1,  1,1,  -1,1,
+    ]), gl.STATIC_DRAW);
+
+    /*not used yet*/
+    iteratorProg.randUniform = gl.getUniformLocation(iteratorProg, "rands");
+    tmp=new Float32Array(50);
+    for (let i = 0; i < 50; i++) { tmp[i]=Math.random()-0.5;}
+    gl.uniform1fv(iteratorProg.randUniform, tmp);
+
+    iteratorProg.radiusUniform=gl.getUniformLocation(iteratorProg, "radius");
+    gl.uniform1f(iteratorProg.radiusUniform,1.8);
+
+    // https://stackoverflow.com/questions/7617668/glvertexattribpointer-needed-everytime-glbindbuffer-is-called
+    gl.vertexAttribPointer(iteratorProgCoordLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const elementBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array([0,1,2,3]), gl.STATIC_DRAW);
+
+    const startState = new Uint8Array(1024*1024*3);
+
+  if (mymode==1){
+  for (let x=0;x<1024;x++){
+   for (let y = 0; y < 1024; y++) {
+      const intensity =  (x<10) ? 255 : 0;
+      i=y*1024+x;
+      startState[i*3  ] = intensity;
+      startState[i*3+1] = Math.floor(Math.random()*255);
+      startState[i*3+2] = Math.floor(Math.random()*255);
+      }
+     }
+    }
+    if (mymode==2){
+    for (let x=0;x<1024;x++){
+     for (let y = 0; y < 1024; y++) {
+        var intensity=0;
+        if ((x>480)&&(x<500)&&(y>200)&&(y<500))intensity=255;
+        if ((x>440)&&(x<=480)&&(y>200)&&(y<500)) intensity=100;
+        if ((x>120)&&(x<140)&&(y>800)&&(y<900)) intensity=255;
+        if ((x>100)&&(x<=120)&&(y>800)&&(y<900)) intensity=100;
+        i=y*1024+x;
+        startState[i*3  ] = intensity;
+        startState[i*3+1] = Math.floor(Math.random()*255);
+        startState[i*3+2] = Math.floor(Math.random()*255);
+        }
+       }
+    }
+
+    const texture0 = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture0);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1024, 1024, 0, gl.RGB, gl.UNSIGNED_BYTE, startState);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.generateMipmap(gl.TEXTURE_2D);
+
+    const texture1 = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0+1);
+    gl.bindTexture(gl.TEXTURE_2D, texture1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1024, 1024, 0, gl.RGB, gl.UNSIGNED_BYTE, startState);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.generateMipmap(gl.TEXTURE_2D);
+
+    const framebuffers = [gl.createFramebuffer(), gl.createFramebuffer()];
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[0]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture0, 0);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[1]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture1, 0);
+
+    let nextStateIndex = 0;
+
+   iteratorProg.radiusUniform=gl.getUniformLocation(iteratorProg, "radius");
+   iteratorProg.thresholdUniform=gl.getUniformLocation(iteratorProg, "threshold");
+   gl.useProgram(iteratorProg);
+   gl.uniform1f(iteratorProg.thresholdUniform,thresholdvalue);
+   gl.uniform1f(iteratorProg.radiusUniform,radiusvalue);
+
+
+   radius_slider.oninput = function() {
+         radius_output.innerHTML = this.value;
+         radiusvalue=this.value;
+         gl.useProgram(iteratorProg);
+         gl.uniform1f(iteratorProg.radiusUniform,radiusvalue);
+    }
+
+   threshold_slider.oninput = function() {
+         threshold_output.innerHTML = this.value;
+         thresholdvalue=this.value;
+         gl.useProgram(iteratorProg);
+         gl.uniform1f(iteratorProg.thresholdUniform,thresholdvalue);
+    }
+
+   steps_slider.oninput = function() {
+     steps_output.innerHTML = this.value;
+     stepsvalue=this.value;
+   }
+
+   function draw() {
+    var previousStateIndex;
+    for (let i=0;i<stepsvalue;i++){
+      previousStateIndex = 1 - nextStateIndex;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[nextStateIndex]);
+      gl.useProgram(iteratorProg);
+      gl.enableVertexAttribArray(iteratorProgCoordLoc);
+      gl.uniform1i(iteratorProgPreviousStateLoc, previousStateIndex);
+      gl.drawElements(gl.TRIANGLE_FAN, 4, gl.UNSIGNED_BYTE, 0);
+      nextStateIndex = previousStateIndex;
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.useProgram(displayProg);
+      gl.uniform1i(displayProgStateLoc, nextStateIndex);
+      gl.drawElements(gl.TRIANGLE_FAN, 4, gl.UNSIGNED_BYTE, 0);
+      requestAnimationFrame(draw);
+    }
+    draw();
+ }
+ doEverything(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<!-- saved from url=(0035)http://art.muth.org/smoothlife.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>SmoothLife</title>
+    
+    <meta http-equiv="Content-Type" content="text/html">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: sans-serif;
+            background-color: black;
+        }
+
+        div.error {
+            z-index: 2;
+            opacity: 0.75;
+            position: absolute;
+            background-color: red;
+            color: white;
+            top: 20%;
+            bottom: 20%;
+            left: 10%;
+            right: 10%;
+            text-align: center;
+            vetical-align: middle;
+            align-content: center;
+            font-size: 300%;
+            justify-content: center;
+            align-items: center;
+            /* display:flex; */
+        }
+
+        div.about, div.config, div.performance, div.logo {
+            z-index: 2;
+            opacity: 0.75;
+            position: absolute;
+            background-color: #666;
+            color: white;
+        }
+
+        div.about {
+            padding: 1em;
+            top: 4%;
+            bottom: 4%;
+            left: 52%;
+            right: 4%;
+        }
+
+        div.config {
+            padding: 1em;
+            top: 4%;
+            bottom: 4%;
+            left: 4%;
+            right: 52%;
+        }
+
+        div.progress {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+        / / transform: translateX(- 50 %);
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            padding: .5em;
+        / / / / color: #f00;
+            background-color: #87CEFA;
+        }
+
+        div.performance {
+            padding: .5em;
+        }
+
+        div.logo {
+            padding: .5em;
+            background-color: rgba(0, 0, 0, 0);
+            color: white;
+            bottom: 2%;
+            right: 2%;
+        }
+
+        img.splash {
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            padding: 0;
+            margin: auto;
+            display: block;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+
+        input[type=reset], button {
+            font-weight: bold;
+        }
+
+        input[type=text], input[type=number] {
+            width: 5em;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        a:hover, a:visited, a:link, a:active {
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+    <script async="" src="./SmoothLife_files/analytics.js"></script><script>
+    (function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r;
+        i[r] = i[r] || function () {
+            (i[r].q = i[r].q || []).push(arguments)
+        }, i[r].l = 1 * new Date();
+        a = s.createElement(o),
+            m = s.getElementsByTagName(o)[0];
+        a.async = 1;
+        a.src = g;
+        m.parentNode.insertBefore(a, m)
+    })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+
+    ga('create', 'UA-32123907-10', 'auto');
+    ga('send', 'pageview');
+    </script>
+</head>
+<body>
+<div class="about">
+    <h2>About</h2>
+    <pre>  Copyright (c) 2015 Robert Muth (robert@muth.org)
+
+  Based on <a href="http://sourceforge.net/projects/smoothlife/">SmoothLife</a> by Stefan Rafler
+  Implemented in <a href="https://www.dartlang.org/">Dart</a>
+  
+  More Screen Art at: <a href="http://art.muth.org/">http://art.muth.org</a>
+  </pre>
+    <table>
+        <tbody><tr>
+            <th>Key</th>
+            <th>Function</th>
+        </tr>
+        <tr>
+            <th>A</th>
+            <td>Toggle About</td>
+        </tr>
+        <tr>
+            <th>C</th>
+            <td>Toggle Config</td>
+        </tr>
+        <tr>
+            <th>F</th>
+            <td>Toggle Fullscreen</td>
+        </tr>
+        <tr>
+            <th>P</th>
+            <td>Toggle Performance</td>
+        </tr>
+        <tr>
+            <th>R</th>
+            <td>Reset/Restart</td>
+        </tr>
+    </tbody></table>
+    <br>
+    <button type="button" data-cmd="C+">Config</button>
+    &nbsp;
+    <button type="button" data-cmd="A-">Close</button>
+
+    <h3>Update Formula</h3>
+
+    <div>
+        <svg width="400" height="400">
+            <circle cx="200" cy="200" r="150" fill="red" stroke="black" stroke-width="5"></circle>
+            <circle cx="200" cy="200" r="75" fill="blue" stroke="black" stroke-width="5"></circle>
+            <circle cx="200" cy="200" r="2.5" fill="blue" stroke="black" stroke-width="5"></circle>
+            <text fill="black" font-size="14" font-weight="bold" font-family="Sans" x="145" y="90">ring-area: ra
+            </text>
+            <text fill="black" font-size="14" font-weight="bold" font-family="Sans" x="145" y="110">(normalized)
+            </text>
+            <text fill="black" font-size="14" font-weight="bold" font-family="Sans" x="145" y="220">disk-area: da
+            </text>
+            <text fill="black" font-size="14" font-weight="bold" font-family="Sans" x="145" y="240">(normalized)
+            </text>
+            <text fill="black" font-size="14" font-weight="bold" font-family="Sans" x="185" y="180">old
+            </text>
+        </svg>
+    </div>
+    <tt>
+        alive := da ∈ [0.5, 1.0]
+        <br>
+        birth := ra ∈ Birth-Interval
+        <br>
+        survive := ra ∈ Survive-Interval
+        <br>
+        update := alive * survive + !alive * birth
+        <br>
+        <b>new := (1-speed) * old + speed * update</b>
+    </tt>
+
+</div>
+
+<div class="config">
+    <h2>Config</h2>
+    <form>
+        <select id="preset">
+        <option value="reset">GlidersAndWires</option><option value="TissueWars">TissueWars</option><option value="Larvae">Larvae</option><option value="GlidersAndWires2">GlidersAndWires2</option><option value="GlidersGalore">GlidersGalore</option><option value="Honeycombs">Honeycombs</option><option value="WobbleGliders">WobbleGliders</option><option value="BlinkingEyes">BlinkingEyes</option><option value="Fruitcake">Fruitcake</option><option value="Maze">Maze</option><option value="DisappearingFruitcake">DisappearingFruitcake</option><option value="WiresToCrossOrHexagon">WiresToCrossOrHexagon</option><option value="Islands">Islands</option><option value="WormsWithLoops">WormsWithLoops</option><option value="NestOfWorms">NestOfWorms</option><option value="Fishies">Fishies</option><option value="PolkaDots">PolkaDots</option><option value="PolkaDotsFast">PolkaDotsFast</option><option value="WormsWithWorms">WormsWithWorms</option><option value="SinglesAndCouples">SinglesAndCouples</option><option value="TouchAndGo">TouchAndGo</option><option value="Smooth Glider">Smooth Glider</option></select>
+        <button type="button" data-cmd="X">Activate Preset</button>
+    </form>
+    <h3>Customize</h3>
+    <form>
+        <table>
+            <tbody><tr>
+                <td><input type="number" id="radInner" min="1" max="100" value="6.0" step="1"></td>
+                <td>Inner (Disk) Radius<sup>*</sup></td>
+            </tr>
+            <tr>
+                <td><input type="number" id="radOuter" min="1" max="100" value="24.0" step="1"></td>
+                <td>Outer (Ring) Radius<sup>*</sup></td>
+            </tr>
+            <tr>
+                <td><input type="number" id="antiAliasing" min="1" max="100" value="1.0" step="1"></td>
+                <td>Antialiasing<sup>*</sup></td>
+            </tr>
+              <tr>
+                <td><input type="number" id="speed" min="0" max="1" value="0.1" step="0.01">
+                </td>
+                <td>Speed</td>
+            </tr>
+            <tr>
+                <td><input type="number" id="birthLo" min="0" max="1" value="0.187" step="0.001"> –
+                </td>
+                <td><input type="number" id="birthHi" min="0" max="1" value="0.208" step="0.001"> Birth Interval
+
+                </td>
+            </tr>
+
+            <tr>
+                <td><input type="number" id="deathLo" min="0" max="1" value="0.196" step="0.001"> –
+                </td>
+                <td><input type="number" id="deathHi" min="0" max="1" value="0.382" step="0.001"> Survival Interval
+                </td>
+            </tr>
+
+            <tr>
+                <td><select id="colorMode">
+                    <option value="0.0">Grayscale</option>
+                    <option value="1.0">Black/White</option>
+                    <option value="2.0">Color</option>
+                </select></td>
+                <td>Color Mode</td>
+            </tr>
+             <tr>
+                <td><select id="neighborhoodShape">
+                    <option value="circle">Circular</option>
+                    <option value="square">Square</option>
+                </select></td>
+                <td>Neighborhood Shape<sup>*</sup></td>
+            </tr>
+            <tr>
+                <td><select id="resolution">
+                    <option value="hi">High</option>
+                    <option value="lo">Low</option>
+                </select></td>
+                <td>Resolution<sup>*</sup></td>
+            </tr>
+            <tr>
+                <td><input type="number" id="stableThreshold" min="0" max="1" value="0.2" step="0.01"></td>
+                <td>Stable Pattern Threshold</td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="hideAbout"></td>
+                <td>Hide About screen<sup>*</sup></td>
+            </tr>
+
+            <tr>
+                <td><input type="number" id="randomSeed" value="0" step="1" short="1"></td>
+                <td>Random Seed</td>
+            </tr>
+        </tbody></table>
+    </form>
+    <sup>*</sup> = requires restart
+    <p>
+        <button type="button" data-cmd="A">About</button>
+        &nbsp;
+        <button type="button" data-cmd="P">Frame Rate</button>
+        &nbsp;
+        <button type="button" data-cmd="R">Restart</button>
+        &nbsp;
+        <button type="button" data-cmd="C-">Close</button>
+    </p>
+</div>
+
+<div class="performance" hidden="">
+    <pre id="fps">16.91
+Change 1</pre>
+</div>
+
+
+<div class="logo">Smooth Life</div>
+
+<div class="error" id="error" hidden=""></div>
+
+<div id="event">
+    <canvas id="area" width="1024" height="512"></canvas>
+</div>
+<script src="./SmoothLife_files/smoothlife.dart.js"></script>
+
+
+</body></html>
