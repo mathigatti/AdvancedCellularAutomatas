@@ -1,6 +1,8 @@
 
 # Credits
 
+- Discrete Cellular Automatas, (zombie-einstein)[https://github.com/zombie-einstein/Cellular-Automata]
+- Javascript Boids, (zombie-einstein)[https://github.com/zombie-einstein/Javascript-Boids]
 - Smooth Life 1, [Tim Ngo](https://github.com/timmngo/smoothlife-shader)
 - Smooth Life 2, [Robert Muth](http://art.muth.org/smoothlife.html)
 - Continuous Cellular Automata [Gil Bub](http://gil-bub.lab.mcgill.ca/dev/webGL_CA.html)
