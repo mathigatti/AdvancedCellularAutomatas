@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>Javascript Boids</title>
+<link rel="stylesheet" href="main.css">
+</head>
+
+<body onresize = "resizeFunction()">
+
+<canvas id="myCanvas" onclick="addBoidAtClick(event)" >
+Too bad your browser does not support the HTML5 canvas.
+</canvas>
+
+
+
+<div id="wrapper">
+<h2> Javascript Boids:  </h2>
+<p>  Made by zombie-einstein.	</p>
+<p>  Click to add boids. 		</p>
+<p>  Obstacles and boids are randomly placed after resetting. </p>
+<h2> Controls:  </h2>
+<button onclick="startSim()"	> Start </button>
+<button onclick="pauseSim()"	> Stop  </button>
+<button onclick="resetBoids()"	> Reset </button>
+<button onclick="stepSim()"		> Step 	</button>
+<h2> Obstacles:  </h2>
+<button onclick="changeObstacles(1)"	> + </button>
+<button onclick="changeObstacles(-1)"	> - </button>
+<h2> Show Steering: </h2>
+<button onclick="showSteeringSwitchOn()" >	On  </button>
+<button onclick="showSteeringSwitchOff()">	Off </button>
+<h2> Boids: </h2>
+<p id="boidNumber" style="display:inline;"> </p>
+<button onclick="removeBoid(10)">-10 </button>
+<button onclick="removeBoid(1)" >-1  </button>
+<button onclick="addBoid(1)"    >+1  </button>
+<button onclick="addBoid(10)"   >+10 </button>
+<h2> Test Values: </h2>
+<p id="testValues" > </p>
+</div>
+
+<script src="function-utils.js"	></script>
+<script src="vector-utils.js"	></script>
+<script src="boid-class.js"		></script>
+<script src="obstacle-class.js"	></script>
+<script src="boid-main.js"		></script>
+
+</body>
+
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>Javascript Boids</title>
+<link rel="stylesheet" href="main.css">
+</head>
+
+<body onresize = "resizeFunction()">
+
+<canvas id="myCanvas" onclick="addBoid(event)" >
+Too bad your browser does not support the HTML5 canvas tag.
+</canvas>
+
+
+
+<div id="wrapper">
+
+<div id="header">
+<h2> Javascript Boids:  </h2>
+<p> Made by zombie-einstein. </p>
+<p> Click to add boids. </p>
+<p> Obstacles are randomly placed. </p>
+</div>
+
+<div id="buttons">
+<h2> Controls:  </h2>
+<button onclick="resetBoids()">Reset</button>
+<button onclick="startSim()">Start</button>
+<button onclick="pauseSim()">Stop</button>
+<form>
+Num Obstacles: <input type="number" value="3" id="obstacles" onchange="changeObstacles()" max="10" min="0" size="2">
+</form>
+</div>
+
+<div id="info">
+<p id="number"> </p>
+</div>
+
+</di</div>v></d</div>iv>
+
+
+
+<script src="function-utils.js"></script>
+<script src="vector-utils.js"></script>
+<script src="boid-class.js"></script>
+<script src="obstacle-class.js"></script>
+<script src="boid-main.js"></script>
+
+</body>
+
+</html>
